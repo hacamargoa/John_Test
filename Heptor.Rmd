@@ -1,0 +1,220 @@
+---
+title: "Informe mensual"
+output: 
+  flexdashboard::flex_dashboard:
+    theme:  sandstone # lumen sandstone
+    navbar:
+      - { title: "Home", href: "http://loccitec.com" }
+    social: ["linkedin", "facebook"]
+    orientation: rows
+    vertical_layout: fill
+    # logo: Loccitec2.png
+    runtime: shiny
+---
+
+<!-- Colores de letra para las cajas -->
+<style type = "text/css">
+.value-box .value {
+    color: grey;
+}
+.value-box .caption {
+    color: grey;
+}
+</style>
+
+
+
+<!-- para hacer: Grafico apilado de tiempos buque y que bueque pendiente por actividad... -->
+
+<!-- #nota hacer grafico acumulando los tiemposde cada paso!!! -->
+
+
+
+
+
+
+
+``` {r setup, message = FALSE, include = FALSE, warning = FALSE} 
+# Librerias a usar  
+{ 
+  library(flexdashboard)
+  library(readxl)
+  library(plyr)
+  library(ggplot2)
+  library(plotly)
+  library(highcharter)
+  library(lubridate)
+}
+
+# Colores para el informe
+{ 
+  Color1 <- "#407B1A"
+  Color2 <- "#16284D"
+  Color3 <- "#515859"
+  Color4 <- "#D8E3EA"
+}
+
+  
+# Datos
+  # Directorio de trabajo
+  setwd("C:/Users/myalv/OneDrive/Documents/Hector/Desktop/John")
+  
+  # Importar datos, base completa
+
+ImpoDAF <- read_excel("Heptor.xlsx", na = "Pendiente")
+
+#  View(ImpoDAF)
+  str(ImpoDAF)
+  # Preparación de datos
+
+  # Datos para el informe esto es para llenar
+    RotuloPeriodo <- "Enero - Octubre, 2023"
+
+    # Unidades
+  {
+    UnidadesArribadas <- length(ImpoDAF$VIN)
+    
+    EnTerminal <- subset(ImpoDAF, Estado == "En terminal", select = "Estado")
+    EnTerminal <- length(EnTerminal$Estado)
+    EnPatio <- subset(ImpoDAF, Estado == "En patio", select = "Estado")
+    EnPatio <- length(EnPatio$Estado)
+    Entregada <- subset(ImpoDAF, Estado == "Entregada", select = "Estado")
+    Entregada <- length(Entregada$Estado)
+    
+    UnidadesMes <- ddply(ImpoDAF, c("Arribo", "Buque", "Estado", "Modelo"), summarise, n = length(VIN))
+    UnidadesMes$Arribo <- as.Date(UnidadesMes$Arribo, origin = "1900-01-01")
+    UnidadesMes2 <- ddply(UnidadesMes, "Arribo", summarise, n = sum(n))
+    UnidadesMes3 <- ddply(UnidadesMes, "Modelo", summarise, n = sum(n))
+  }
+```
+
+
+Unidades {data-icon="fa-truck"}
+==================================================
+text box {data-height=20}
+-------------------------------------
+### 
+```{r}
+valueBox("Importación DAF", 
+         color = Color4,
+         caption = RotuloPeriodo)
+```
+
+###
+```{r}
+valueBox(23,
+         color = Color4,
+         icon = "fa-truck",
+         caption = "Unidades arribadas")
+```
+
+###
+```{r}
+valueBox(12,
+         color = Color4,
+         icon = "fa-ship",
+         caption = "Embarques")
+```
+
+### 
+```{r}
+valueBox(paste(23.4, "%"),
+         color = Color4,
+         icon = "fa-calendar-check",
+         caption = "En proceso")
+```
+
+### Unidades Navegando
+No hay embarques navegando actualmente
+
+## unidades fecha {data-height=750}
+-------------------------------------
+
+### 
+```{r}
+hchart(UnidadesMes2, type = "line", hcaes(x = Arribo, y = n),
+       dataLabels = list(enabled = T), 
+       stacking = "normal"
+)  %>% 
+  hc_title(text = "Unidades arribadas",
+           style = list(fontWeight = "bold", 
+                        fontSize = "18px"),
+           align = "Left"
+  ) %>%
+  hc_subtitle(text = "por fecha de arribo", 
+              style = list(fontWeight = "bold"),
+              align = "left"
+  ) %>% 
+  hc_credits(enabled = F, text = "Fuente: xxxxx", 
+             style = list(fontSize = "10px")
+  ) %>%
+  hc_xAxis(title = list(text = "Fecha de arribo")
+  ) %>%
+  hc_yAxis(title = list(text = "Número de unidades")
+  ) %>%              
+  hc_tooltip(shared = F, valueDecimals = 0,
+             headerFormat = "<b> {point.key}</b><br>",
+             pointFormat = "Unidades: {point.y}"
+  )  %>%
+  hc_add_theme(hc_theme_economist()) %>%
+  hc_exporting(enabled= T) 
+```
+
+## unidades detalles {data-height=750}
+-------------------------------------
+
+###
+``` {r, fig.width = 3}
+hchart(UnidadesMes3, type = "pie", hcaes(x = Modelo, y = n),
+       dataLabels = list(enabled = T)
+       )  %>% 
+  hc_title(text = "Unidades arribadas",
+           style = list(fontWeight = "bold", 
+                        fontSize = "18px"),
+           align = "Left"
+           ) %>%
+  hc_subtitle(text = "por modelo", 
+              style = list(fontWeight = "bold"),
+              align = "left"
+              ) %>% 
+  hc_credits(enabled = F, text = "Fuente: datos recolectados por Loccitec®", 
+             style = list(fontSize = "10px")
+             ) %>%
+  hc_tooltip(shared = F, valueDecimals = 0,
+             headerFormat = "<b> {point.key}</b><br>",
+             pointFormat = "Unidades: {point.y}<br> Unidades total: {point.total}<br> Participación: {point.percentage:,.2f}%"
+             )  %>%
+  hc_add_theme(hc_theme_economist()) %>%
+  hc_exporting(enabled = T)
+```
+
+### 
+```{r}
+hchart(UnidadesMes, type = "bar", hcaes(x = Buque, y = n, group = Estado, Modelo),
+       dataLabels = list(enabled = T), 
+       stacking = "normal"
+)  %>% 
+  hc_title(text = "Unidades arribadas",
+           style = list(fontWeight = "bold", 
+                        fontSize = "18px"),
+           align = "Left"
+  ) %>%
+  hc_subtitle(text = "por buque y ubicación", 
+              style = list(fontWeight = "bold"),
+              align = "left"
+  ) %>% 
+  hc_credits(enabled = F, text = "Fuente: xxxxx", 
+             style = list(fontSize = "10px")
+  ) %>%
+  hc_xAxis(title = list(text = "Buque")
+  ) %>%
+  hc_yAxis(title = list(text = "Número de unidades"),
+           stackLabels = list(color = "red", fontWeight = "bold", enabled = T)
+  ) %>%              
+  hc_tooltip(shared = F, valueDecimals = 0,
+             headerFormat = "<b> {point.key}</b><br>",
+             pointFormat = "Unidades {series.name}: {point.y}<br> Unidades total: {point.total}<br> Participación: {point.percentage:,.2f}%"
+  )  %>%
+  hc_add_theme(hc_theme_economist())%>%
+  hc_exporting(enabled = T) 
+```
